@@ -13,6 +13,28 @@ comline:
     customerNumber: ${COMLINE_CUSTOMER_NUMBER:15017319}
     password: ${COMLINE_PASSWORD:fM6v62eNoBSL}
 
+# WebClient configuration
+webclient:
+  # Connection timeout in milliseconds (default: 10000 = 10s)
+  connection:
+    timeout: ${WEBCLIENT_CONNECTION_TIMEOUT:10000}
+  # Read timeout in milliseconds (default: 30000 = 30s)
+  read:
+    timeout: ${WEBCLIENT_READ_TIMEOUT:30000}
+  # Write timeout in milliseconds (default: 10000 = 10s)
+  write:
+    timeout: ${WEBCLIENT_WRITE_TIMEOUT:10000}
+  # Maximum number of connections in the pool (default: 100)
+  max:
+    connections: ${WEBCLIENT_MAX_CONNECTIONS:100}
+  # Pending acquire timeout in milliseconds (default: 45000 = 45s)
+  pending:
+    acquire:
+      timeout: ${WEBCLIENT_PENDING_ACQUIRE_TIMEOUT:45000}
+  # Use JVM DNS resolver instead of Netty's (workaround for Palo Alto and corporate security)
+  # Set to true if experiencing DNS resolution issues with corporate security software
+  use-jvm-dns-resolver: ${WEBCLIENT_USE_JVM_DNS_RESOLVER:false}
+
 # Actuator configuration for metrics
 management:
   endpoints:
