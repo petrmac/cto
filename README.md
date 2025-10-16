@@ -403,6 +403,69 @@ mvn jib:build -Pmultiplatform  # Multi-platform (requires registry)
 - This eliminates DNS resolution warnings on macOS (both Intel and Apple Silicon)
 - No action required - already configured in pom.xml
 
+**DNS resolution timeout with Palo Alto or corporate security software**
+
+If you experience `DnsResolverTimeoutException` with corporate security software (Palo Alto, Zscaler, etc.), see [PALO_ALTO_DNS_FIX.md](PALO_ALTO_DNS_FIX.md) for detailed solutions.
+
+**Quick fix:**
+
+**Solution 1: Use JVM DNS Resolver (Recommended)**
+```bash
+# Set environment variable
+export WEBCLIENT_USE_JVM_DNS_RESOLVER=true
+
+# Or pass as JVM argument
+java -jar comline-edge.jar --webclient.use-jvm-dns-resolver=true
+
+# Or with Maven
+mvn spring-boot:run -Dspring-boot.run.arguments="--webclient.use-jvm-dns-resolver=true"
+```
+
+**Solution 2: Configure JVM DNS Cache**
+```bash
+# Add to JVM arguments
+-Dnetworkaddress.cache.ttl=60
+-Dnetworkaddress.cache.negative.ttl=10
+-Djava.net.preferIPv4Stack=true
+```
+
+**Solution 3: Increase Timeouts**
+```bash
+# Set environment variables
+export WEBCLIENT_CONNECTION_TIMEOUT=30000
+export WEBCLIENT_READ_TIMEOUT=60000
+
+# Or in application.yml
+webclient:
+  connection:
+    timeout: 30000
+  read:
+    timeout: 60000
+```
+
+**Solution 4: Use IP Address Instead of Hostname**
+```bash
+# If DNS lookup fails completely, use IP address
+export COMLINE_BASE_URL=https://IP_ADDRESS/4DCGI/direct
+```
+
+**Solution 5: Configure System DNS**
+- Add the hostname to `/etc/hosts` (Linux/macOS) or `C:\Windows\System32\drivers\etc\hosts` (Windows)
+- Example: `123.45.67.89  ctofinder.comline-shop.de`
+
+**Available WebClient Configuration**
+
+All WebClient settings can be configured via environment variables or application.yml:
+
+| Property | Environment Variable | Default | Description |
+|----------|---------------------|---------|-------------|
+| `webclient.connection.timeout` | `WEBCLIENT_CONNECTION_TIMEOUT` | 10000 | Connection timeout in ms |
+| `webclient.read.timeout` | `WEBCLIENT_READ_TIMEOUT` | 30000 | Read timeout in ms |
+| `webclient.write.timeout` | `WEBCLIENT_WRITE_TIMEOUT` | 10000 | Write timeout in ms |
+| `webclient.max.connections` | `WEBCLIENT_MAX_CONNECTIONS` | 100 | Max connection pool size |
+| `webclient.pending.acquire.timeout` | `WEBCLIENT_PENDING_ACQUIRE_TIMEOUT` | 45000 | Pending acquire timeout in ms |
+| `webclient.use-jvm-dns-resolver` | `WEBCLIENT_USE_JVM_DNS_RESOLVER` | false | Use JVM DNS resolver |
+
 ## Contributing
 
 1. Fork the repository
@@ -426,7 +489,9 @@ Proprietary - Conrad CCP
 For issues and questions:
 - **Issues**: GitHub Issues
 - **Email**: support@conrad-ccp.de
-- **Documentation**: See [DOCKER.md](DOCKER.md)
+- **Documentation**:
+  - [DOCKER.md](DOCKER.md) - Docker build and deployment
+  - [PALO_ALTO_DNS_FIX.md](PALO_ALTO_DNS_FIX.md) - DNS resolution issues with corporate security
 
 ## Changelog
 
