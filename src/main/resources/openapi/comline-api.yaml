@@ -1,0 +1,170 @@
+openapi: 3.0.3
+info:
+  title: ComLine Edge Service API
+  description: ComLine API Edge Service - Design based on Solution-Design-ComlineAPIEdge-Service
+  version: 1.0.0
+  contact:
+    name: Conrad
+    email: support@conrad.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.conrad.com
+    description: Production server
+
+tags:
+  - name: Products
+    description: Product management operations
+
+paths:
+  /api/v1/products/{ctoNr}:
+    get:
+      tags:
+        - Products
+      summary: Get product by CTO Number
+      description: Retrieves a specific product by its CTO Number (Configure-To-Order number)
+      operationId: getProductByCtoNr
+      parameters:
+        - name: ctoNr
+          in: path
+          required: true
+          description: The CTO Number (Configure-To-Order number) of the product
+          schema:
+            type: string
+            example: "CZ1FU-013020"
+        - name: accessToken
+          in: query
+          required: true
+          description: Dynamic access token for ComLine API authentication
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Product:
+      type: object
+      description: Product information from ComLine API
+      required:
+        - productIdentifier
+        - name
+      properties:
+        productIdentifier:
+          type: string
+          description: The unique identifier for the product
+          example: "PROD-12345"
+        name:
+          type: string
+          description: Product name, could be a title or name
+          example: "Wireless Mouse"
+        description:
+          type: string
+          description: A detailed description of the product
+          example: "High-precision wireless mouse with ergonomic design"
+        databasePrice:
+          type: number
+          format: double
+          description: The price of the item from the database
+          example: 29.99
+        retailPrice:
+          type: number
+          format: double
+          description: The retail price, recommended by the manufacturer
+          example: 39.99
+        recommendedRetailPrice:
+          type: number
+          format: double
+          description: The manufacturer's recommended retail price
+          example: 44.99
+        manufacturerProductNumber:
+          type: string
+          description: The product number provided by the manufacturer
+          example: "WM-2024-X1"
+        ean:
+          type: string
+          description: The European Article Number (EAN)
+          example: "4012345678901"
+        length:
+          type: number
+          format: double
+          description: The length of the product in meters
+          example: 0.12
+        width:
+          type: number
+          format: double
+          description: The width of the product in meters
+          example: 0.08
+        height:
+          type: number
+          format: double
+          description: The height of the product in meters
+          example: 0.04
+        netWeight:
+          type: number
+          format: double
+          description: The net weight of the product in kilograms
+          example: 0.15
+        productWeight:
+          type: number
+          format: double
+          description: The gross weight of the product in kilograms
+          example: 0.25
+        grossPrice:
+          type: number
+          format: double
+          description: The gross price (incl. tax)
+          example: 35.69
+        deliveryDate:
+          type: string
+          format: date
+          description: The expected delivery date (ISO 8601 format)
+          example: "2024-12-25"
+        url:
+          type: string
+          format: uri
+          description: URL for the main product image
+          example: "https://example.com/images/product.jpg"
+        productImage:
+          type: string
+          format: uri
+          description: URL for the product image
+          example: "https://example.com/images/product-detail.jpg"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code or type
+          example: INTERNAL_SERVER_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+          example: Failed to retrieve data from ComLine API
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the error occurred
+          example: "2024-10-16T10:30:00Z"
