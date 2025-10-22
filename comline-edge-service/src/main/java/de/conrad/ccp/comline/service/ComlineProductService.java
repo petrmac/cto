@@ -26,6 +26,27 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 @RequiredArgsConstructor
 public class ComlineProductService implements ProductService {
 
+    // Log message constants
+    private static final String LOG_CALLING_API = "Calling ComLine API for product";
+    private static final String LOG_API_SUCCESS = "ComLine API call successful";
+    private static final String LOG_API_CLIENT_ERROR = "ComLine API returned client error";
+    private static final String LOG_API_SERVER_ERROR = "ComLine API returned server error";
+    private static final String LOG_API_UNEXPECTED_STATUS = "ComLine API returned unexpected status code";
+    private static final String LOG_API_ERROR_BODY = "ComLine API error response body: {}";
+    private static final String LOG_API_SERVER_ERROR_BODY = "ComLine API server error response body: {}";
+    private static final String LOG_PARSING_RESPONSE = "Parsing ComLine API response for CTO Number {}";
+    private static final String LOG_CTO_MISMATCH = "CTO Number mismatch";
+    private static final String LOG_MAPPED_PRODUCT = "Successfully mapped product";
+    private static final String LOG_PARSING_ERROR = "Error parsing product from ComLine API response";
+    private static final String LOG_API_ERROR = "Error calling ComLine API";
+
+    // Error message constants
+    private static final String ERROR_PRODUCT_NOT_FOUND = "Product with CTO Number %s not found";
+    private static final String ERROR_PRODUCT_NOT_FOUND_HTTP = "Product with CTO Number %s not found (HTTP %d)";
+    private static final String ERROR_SERVER_ERROR_HTTP = "ComLine API server error (HTTP %d)";
+    private static final String ERROR_UNEXPECTED_STATUS = "Unexpected HTTP status from ComLine API: %d";
+    private static final String ERROR_FAILED_TO_PARSE = "Failed to parse product from ComLine API";
+
     private final WebClient webClient;
     private final ComLineApiProperties properties;
     private final ObjectMapper objectMapper;
@@ -53,7 +74,8 @@ public class ComlineProductService implements ProductService {
         String url = buildUrl(ctoNr, accessToken);
         long startTime = System.currentTimeMillis();
 
-        log.info("Calling ComLine API for product {}, {}",
+        log.info("{} {}, {}",
+                LOG_CALLING_API,
                 kv("ctoNr", ctoNr),
                 kv("url", sanitizeUrlForLogging(url)));
 
@@ -68,7 +90,8 @@ public class ComlineProductService implements ProductService {
         long duration = System.currentTimeMillis() - startTime;
 
         if (statusCode.is2xxSuccessful()) {
-            log.info("ComLine API call successful {}, {}, {}",
+            log.info("{} {}, {}, {}",
+                    LOG_API_SUCCESS,
                     kv("ctoNr", ctoNr),
                     kv("http_status", statusCode.value()),
                     kv("duration_ms", duration));
@@ -78,79 +101,84 @@ public class ComlineProductService implements ProductService {
                     .doOnSuccess(product -> successCounter.increment());
 
         } else if (statusCode.is4xxClientError()) {
-            log.warn("ComLine API returned client error {}, {}, {}",
+            log.warn("{} {}, {}, {}",
+                    LOG_API_CLIENT_ERROR,
                     kv("ctoNr", ctoNr),
                     kv("http_status", statusCode.value()),
                     kv("duration_ms", duration));
 
             return response.bodyToMono(String.class)
-                    .doOnNext(errorBody -> log.warn("ComLine API error response body: {}", errorBody))
+                    .doOnNext(errorBody -> log.warn(LOG_API_ERROR_BODY, errorBody))
                     .flatMap(errorBody -> {
                         failureCounter.increment();
                         return Mono.<Product>error(new ProductNotFoundException(
-                                "Product with CTO Number " + ctoNr + " not found (HTTP " + statusCode.value() + ")"));
+                                String.format(ERROR_PRODUCT_NOT_FOUND_HTTP, ctoNr, statusCode.value())));
                     })
                     .switchIfEmpty(Mono.defer(() -> {
                         failureCounter.increment();
                         return Mono.error(new ProductNotFoundException(
-                                "Product with CTO Number " + ctoNr + " not found (HTTP " + statusCode.value() + ")"));
+                                String.format(ERROR_PRODUCT_NOT_FOUND_HTTP, ctoNr, statusCode.value())));
                     }));
 
         } else if (statusCode.is5xxServerError()) {
-            log.error("ComLine API returned server error {}, {}, {}",
+            log.error("{} {}, {}, {}",
+                    LOG_API_SERVER_ERROR,
                     kv("ctoNr", ctoNr),
                     kv("http_status", statusCode.value()),
                     kv("duration_ms", duration));
 
             return response.bodyToMono(String.class)
-                    .doOnNext(errorBody -> log.error("ComLine API server error response body: {}", errorBody))
+                    .doOnNext(errorBody -> log.error(LOG_API_SERVER_ERROR_BODY, errorBody))
                     .flatMap(errorBody -> {
                         failureCounter.increment();
                         return Mono.<Product>error(new RuntimeException(
-                                "ComLine API server error (HTTP " + statusCode.value() + ")"));
+                                String.format(ERROR_SERVER_ERROR_HTTP, statusCode.value())));
                     })
                     .switchIfEmpty(Mono.defer(() -> {
                         failureCounter.increment();
                         return Mono.error(new RuntimeException(
-                                "ComLine API server error (HTTP " + statusCode.value() + ")"));
+                                String.format(ERROR_SERVER_ERROR_HTTP, statusCode.value())));
                     }));
 
         } else {
-            log.warn("ComLine API returned unexpected status code {}, {}, {}",
+            log.warn("{} {}, {}, {}",
+                    LOG_API_UNEXPECTED_STATUS,
                     kv("ctoNr", ctoNr),
                     kv("http_status", statusCode.value()),
                     kv("duration_ms", duration));
 
             failureCounter.increment();
             return Mono.error(new RuntimeException(
-                    "Unexpected HTTP status from ComLine API: " + statusCode.value()));
+                    String.format(ERROR_UNEXPECTED_STATUS, statusCode.value())));
         }
     }
 
     private Mono<Product> parseAndMapProduct(String responseBody, String ctoNr) {
         try {
-            log.debug("Parsing ComLine API response for CTO Number {}", ctoNr);
+            log.debug(LOG_PARSING_RESPONSE, ctoNr);
             ComLineProductDto comLineProduct = parseComLineProduct(responseBody);
 
             // Verify that the returned product matches the requested CTO Number
             if (!ctoNr.equals(comLineProduct.comlineArtikelnummer())) {
-                log.warn("CTO Number mismatch {}, {}",
+                log.warn("{} {}, {}",
+                        LOG_CTO_MISMATCH,
                         kv("requested", ctoNr),
                         kv("returned", comLineProduct.comlineArtikelnummer()));
                 return Mono.error(new ProductNotFoundException(
-                        "Product with CTO Number " + ctoNr + " not found"));
+                        String.format(ERROR_PRODUCT_NOT_FOUND, ctoNr)));
             }
 
             Product product = productMapper.toProduct(comLineProduct);
-            log.info("Successfully mapped product {}", kv("ctoNr", ctoNr));
+            log.info("{} {}", LOG_MAPPED_PRODUCT, kv("ctoNr", ctoNr));
             return Mono.just(product);
 
         } catch (Exception e) {
-            log.error("Error parsing product from ComLine API response {}, {}",
+            log.error("{} {}, {}",
+                    LOG_PARSING_ERROR,
                     kv("ctoNr", ctoNr),
                     kv("error", e.getMessage()),
                     e);
-            return Mono.error(new RuntimeException("Failed to parse product from ComLine API", e));
+            return Mono.error(new RuntimeException(ERROR_FAILED_TO_PARSE, e));
         }
     }
 
@@ -159,7 +187,8 @@ public class ComlineProductService implements ProductService {
         failureCounter.increment();
 
         String errorType = error.getClass().getSimpleName();
-        log.error("Error calling ComLine API {}, {}, {}, {}",
+        log.error("{} {}, {}, {}, {}",
+                LOG_API_ERROR,
                 kv("ctoNr", ctoNr),
                 kv("error_type", errorType),
                 kv("error_message", error.getMessage()),
@@ -170,7 +199,7 @@ public class ComlineProductService implements ProductService {
     }
 
     private String buildUrl(String ctoNr, String accessToken) {
-        return UriComponentsBuilder.fromHttpUrl(properties.getBaseUrl())
+        return UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .queryParam("mid", properties.getMid())
                 .queryParam("action", properties.getAction())
                 .queryParam("kdnr", properties.getCustomerNumber())

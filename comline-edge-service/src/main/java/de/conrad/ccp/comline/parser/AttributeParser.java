@@ -23,14 +23,16 @@ import java.util.regex.Pattern;
 public class AttributeParser {
 
     // Pattern to extract all attributes marked with # or ##
+    // Bounded to prevent ReDoS: max 1000 chars per attribute
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile(
-            "(##?)([^#]+)",
+            "(##?)([^#]{1,1000})",
             Pattern.DOTALL
     );
 
     // Pattern to find where an attribute ends (at " -" or newline)
+    // Bounded to prevent ReDoS: max 500 chars before delimiter
     private static final Pattern ATTRIBUTE_END_PATTERN = Pattern.compile(
-            "(.+?)(?:\\s-|\\n)",
+            "(.{1,500}?)(?:\\s-|\\n)",
             Pattern.DOTALL
     );
 
@@ -42,27 +44,27 @@ public class AttributeParser {
     private static final List<CategoryRule> CATEGORY_RULES = List.of(
             new CategoryRule(
                     // Matches processor specs - use Pattern.DOTALL with non-greedy quantifiers
-                    Pattern.compile(".{0,200}?(M\\d+\\s*(Pro|Max|Ultra)?\\s*Chip|Core\\s*(i\\d+|Ultra)|CPU|Processor|Ryzen|Threadripper).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
+                    Pattern.compile(".{0,200}?(M\\d+\\s*(Pro|Max|Ultra)?\\s*Chip|Core\\s*(i\\d+|Ultra)|CPU|Processor|Ryzen|Threadripper).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::processor
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(\\d+\\s*GB.{0,50}?(Arbeitsspeicher|RAM|Memory|gemeinsam)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
+                    Pattern.compile(".{0,200}?(\\d+\\s*GB.{0,50}?(Arbeitsspeicher|RAM|Memory|gemeinsam)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::memory
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(\\d+\\s*(TB|GB)\\s*(SSD|NVMe|Speicher|Storage)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
+                    Pattern.compile(".{0,200}?(\\d+\\s*(TB|GB)\\s*(SSD|NVMe|Speicher|Storage)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::storage
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(\\d+W.{0,50}?(Power Adapter|Netzteil|USB-C|Ladegerät)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
+                    Pattern.compile(".{0,200}?(\\d+W.{0,50}?(Power Adapter|Netzteil|USB-C|Ladegerät)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::powerAdapter
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(Keyboard|Tastatur|Magic Keyboard).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
+                    Pattern.compile(".{0,200}?(Keyboard|Tastatur|Magic Keyboard).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::keyboard
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(Display|Bildschirm|Retina|Glass|Glas|Monitor|Screen).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
+                    Pattern.compile(".{0,200}?(Display|Bildschirm|Retina|Glass|Glas|Monitor|Screen).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::display
             )
     );
