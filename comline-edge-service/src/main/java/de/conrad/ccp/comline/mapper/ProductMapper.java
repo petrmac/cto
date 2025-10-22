@@ -1,7 +1,10 @@
 package de.conrad.ccp.comline.mapper;
 
 import de.conrad.ccp.comline.api.model.Product;
+import de.conrad.ccp.comline.api.model.ProductAttributes;
 import de.conrad.ccp.comline.dto.ComLineProductDto;
+import de.conrad.ccp.comline.parser.AttributeParser;
+import de.conrad.ccp.comline.util.UriUtils;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
@@ -55,25 +58,16 @@ public interface ProductMapper {
     @Mapping(target = "deliveryDate", source = "liefertermin", qualifiedByName = "offsetDateTimeToLocalDate")
     @Mapping(target = "url", source = "urlBild", qualifiedByName = "stringToUri")
     @Mapping(target = "productImage", source = "urlBild", qualifiedByName = "stringToUri")
+    @Mapping(target = "attributes", source = "comlineArtikelbeschreibung", qualifiedByName = "parseAttributes")
     Product toProduct(ComLineProductDto dto);
 
     /**
      * Custom mapping method to convert String to URI
+     * Delegates to UriUtils for conversion and returns null if Optional is empty
      */
     @Named("stringToUri")
     default URI stringToUri(String url) {
-        if (url == null || url.isBlank()) {
-            return null;
-        }
-        try {
-            // Handle protocol-relative URLs (//domain.com/path)
-            if (url.startsWith("//")) {
-                url = "https:" + url;
-            }
-            return URI.create(url);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
+        return UriUtils.stringToUri(url).orElse(null);
     }
 
     /**
@@ -82,5 +76,13 @@ public interface ProductMapper {
     @Named("offsetDateTimeToLocalDate")
     default LocalDate offsetDateTimeToLocalDate(OffsetDateTime dateTime) {
         return dateTime != null ? dateTime.toLocalDate() : null;
+    }
+
+    /**
+     * Custom mapping method to parse artikelbeschreibung into ProductAttributes
+     */
+    @Named("parseAttributes")
+    default ProductAttributes parseAttributes(String comlineArtikelbeschreibung) {
+        return AttributeParser.parse(comlineArtikelbeschreibung);
     }
 }

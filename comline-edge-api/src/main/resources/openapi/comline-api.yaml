@@ -148,6 +148,50 @@ components:
           format: uri
           description: URL for the product image
           example: "https://example.com/images/product-detail.jpg"
+        attributes:
+          type: object
+          description: Structured product attributes parsed and categorized from comline_artikelbeschreibung
+          properties:
+            baseConfiguration:
+              type: string
+              description: Base configuration reference (e.g., "CTO Variante der Grundkonfiguration MX2Y3D/A")
+              example: "CTO Variante der Grundkonfiguration MX2Y3D/A"
+            processor:
+              type: string
+              description: CPU/Processor specification
+              example: "Apple M4 Pro Chip 14‑Core CPU 20‑Core GPU 16-Core NE"
+            memory:
+              type: string
+              description: RAM/Memory specification
+              example: "48 GB gemeinsamer Arbeitsspeicher"
+            storage:
+              type: string
+              description: Storage/SSD specification
+              example: "4TB SSD Speicher"
+            powerAdapter:
+              type: string
+              description: Power adapter specification
+              example: "140W USB‑C Power Adapter"
+            keyboard:
+              type: string
+              description: Keyboard specification
+              example: "Beleuchtetes Magic Keyboard mit Touch ID (britisch)"
+            display:
+              type: string
+              description: Display/screen specification
+              example: "Standardglas"
+            legal:
+              type: array
+              items:
+                type: string
+              description: Legal notices and disclaimers (marked with ##)
+              example: ["Urheberrechtsabgabe nach §54a UrhG abgeführt und im Kaufpreis enthalten"]
+            other:
+              type: array
+              items:
+                type: string
+              description: Other uncategorized attributes
+              example: []
 
     ErrorResponse:
       type: object
