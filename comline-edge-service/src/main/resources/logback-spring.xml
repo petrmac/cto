@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProfile name="default,local">
+        <!-- Console logging for local development (human-readable) -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:--}/%X{spanId:--}] [%X{requestId:--}] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod,staging">
+        <!-- JSON logging for GCP Cloud Logging -->
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeContext>false</includeContext>
+                <includeMdc>true</includeMdc>
+                <includeStructuredArguments>true</includeStructuredArguments>
+                <includeTags>true</includeTags>
+
+                <!-- GCP Cloud Logging fields -->
+                <customFields>{"serviceContext":{"service":"comline-edge","version":"${BUILD_VERSION:-unknown}"}}</customFields>
+
+                <!-- Map to GCP severity levels -->
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <message>message</message>
+                    <logger>logger</logger>
+                    <thread>thread</thread>
+                    <level>severity</level>
+                    <stackTrace>stack_trace</stackTrace>
+                </fieldNames>
+
+                <!-- Add MDC fields for tracing -->
+                <mdcEntryWriter>
+                    <filter>
+                        <include>traceId</include>
+                        <include>spanId</include>
+                        <include>requestId</include>
+                        <include>ctoNr</include>
+                        <include>userId</include>
+                        <include>http_status</include>
+                        <include>duration_ms</include>
+                    </filter>
+                </mdcEntryWriter>
+
+                <!-- Custom providers for better debugging -->
+                <provider class="net.logstash.logback.composite.loggingevent.ArgumentsJsonProvider"/>
+                <provider class="net.logstash.logback.composite.loggingevent.StackHashJsonProvider"/>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- Service-specific logging levels -->
+    <logger name="de.conrad.ccp.comline" level="DEBUG"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="reactor.netty" level="INFO"/>
+    <logger name="io.netty" level="INFO"/>
+</configuration>

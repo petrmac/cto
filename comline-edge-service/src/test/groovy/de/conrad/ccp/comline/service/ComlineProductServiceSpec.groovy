@@ -2,14 +2,14 @@ package de.conrad.ccp.comline.service
 
 import de.conrad.ccp.comline.api.model.Product
 import de.conrad.ccp.comline.config.ComLineApiProperties
-import de.conrad.ccp.comline.dto.ComLineProductDto
-import de.conrad.ccp.comline.dto.ComLineResponseDto
 import de.conrad.ccp.comline.mapper.ProductMapper
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import org.mapstruct.factory.Mappers
+import org.springframework.http.HttpStatus
+import org.springframework.web.reactive.function.client.ClientResponse
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -23,7 +23,7 @@ class ComlineProductServiceSpec extends Specification {
     WebClient webClient = Mock()
     WebClient.RequestHeadersUriSpec requestHeadersUriSpec = Mock()
     WebClient.RequestHeadersSpec requestHeadersSpec = Mock()
-    WebClient.ResponseSpec responseSpec = Mock()
+    ClientResponse clientResponse = Mock()
     ComLineApiProperties properties = Mock()
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule())
     ProductMapper productMapper = Mappers.getMapper(ProductMapper.class)
@@ -94,8 +94,12 @@ class ComlineProductServiceSpec extends Specification {
         and: "setup WebClient mocks to return API response"
         webClient.get() >> requestHeadersUriSpec
         requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
-        requestHeadersSpec.retrieve() >> responseSpec
-        responseSpec.bodyToMono(String.class) >> Mono.just(apiResponse)
+        requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.OK
+            clientResponse.bodyToMono(String.class) >> Mono.just(apiResponse)
+            function.apply(clientResponse)
+        }
 
         when: "calling getProductByCtoNr"
         def result = service.getProductByCtoNr(ctoNr, accessToken)
@@ -133,8 +137,12 @@ class ComlineProductServiceSpec extends Specification {
         then: "WebClient is called"
         1 * webClient.get() >> requestHeadersUriSpec
         1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
-        1 * requestHeadersSpec.retrieve() >> responseSpec
-        1 * responseSpec.bodyToMono(String.class) >> Mono.just(apiResponse)
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.OK
+            clientResponse.bodyToMono(String.class) >> Mono.just(apiResponse)
+            function.apply(clientResponse)
+        }
 
         and: "ProductNotFoundException is thrown"
         StepVerifier.create(result)
@@ -161,8 +169,12 @@ class ComlineProductServiceSpec extends Specification {
         then: "WebClient is called"
         1 * webClient.get() >> requestHeadersUriSpec
         1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
-        1 * requestHeadersSpec.retrieve() >> responseSpec
-        1 * responseSpec.bodyToMono(String.class) >> Mono.just(apiResponse)
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.OK
+            clientResponse.bodyToMono(String.class) >> Mono.just(apiResponse)
+            function.apply(clientResponse)
+        }
 
         and: "RuntimeException is thrown"
         StepVerifier.create(result)
@@ -184,8 +196,12 @@ class ComlineProductServiceSpec extends Specification {
         then: "WebClient is called"
         1 * webClient.get() >> requestHeadersUriSpec
         1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
-        1 * requestHeadersSpec.retrieve() >> responseSpec
-        1 * responseSpec.bodyToMono(String.class) >> Mono.just(apiResponse)
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.OK
+            clientResponse.bodyToMono(String.class) >> Mono.just(apiResponse)
+            function.apply(clientResponse)
+        }
 
         and: "RuntimeException is thrown"
         StepVerifier.create(result)
@@ -202,5 +218,141 @@ class ComlineProductServiceSpec extends Specification {
 
         then: "sensitive data is masked"
         sanitized == "https://api.example.com?pwd=***&accesstoken=***&other=param"
+    }
+
+    def "should handle 404 client error from ComLine API"() {
+        given: "a CTO number and access token"
+        def ctoNr = "NOTFOUND-123"
+        def accessToken = "test-token"
+        def errorBody = '{"error": "Product not found"}'
+
+        when: "calling getProductByCtoNr and API returns 404"
+        def result = service.getProductByCtoNr(ctoNr, accessToken)
+
+        then: "WebClient is called and returns 404"
+        1 * webClient.get() >> requestHeadersUriSpec
+        1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.NOT_FOUND
+            clientResponse.bodyToMono(String.class) >> Mono.just(errorBody)
+            function.apply(clientResponse)
+        }
+
+        and: "ProductNotFoundException is thrown"
+        StepVerifier.create(result)
+                .expectErrorMatches { it instanceof ProductService.ProductNotFoundException &&
+                        it.message.contains("NOTFOUND-123") &&
+                        it.message.contains("404")
+                }
+                .verify()
+    }
+
+    def "should handle 404 client error with empty response body"() {
+        given: "a CTO number and access token"
+        def ctoNr = "EMPTY-404"
+        def accessToken = "test-token"
+
+        when: "calling getProductByCtoNr and API returns 404 with empty body"
+        def result = service.getProductByCtoNr(ctoNr, accessToken)
+
+        then: "WebClient is called and returns 404 with empty body"
+        1 * webClient.get() >> requestHeadersUriSpec
+        1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.NOT_FOUND
+            clientResponse.bodyToMono(String.class) >> Mono.empty()
+            function.apply(clientResponse)
+        }
+
+        and: "ProductNotFoundException is thrown"
+        StepVerifier.create(result)
+                .expectErrorMatches { it instanceof ProductService.ProductNotFoundException &&
+                        it.message.contains("EMPTY-404") &&
+                        it.message.contains("404")
+                }
+                .verify()
+    }
+
+    def "should handle 500 server error from ComLine API"() {
+        given: "a CTO number and access token"
+        def ctoNr = "SERVER-ERROR"
+        def accessToken = "test-token"
+        def errorBody = '{"error": "Internal server error"}'
+
+        when: "calling getProductByCtoNr and API returns 500"
+        def result = service.getProductByCtoNr(ctoNr, accessToken)
+
+        then: "WebClient is called and returns 500"
+        1 * webClient.get() >> requestHeadersUriSpec
+        1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.INTERNAL_SERVER_ERROR
+            clientResponse.bodyToMono(String.class) >> Mono.just(errorBody)
+            function.apply(clientResponse)
+        }
+
+        and: "RuntimeException is thrown"
+        StepVerifier.create(result)
+                .expectErrorMatches { it instanceof RuntimeException &&
+                        it.message.contains("server error") &&
+                        it.message.contains("500")
+                }
+                .verify()
+    }
+
+    def "should handle 503 server error with empty response body"() {
+        given: "a CTO number and access token"
+        def ctoNr = "SERVICE-UNAVAILABLE"
+        def accessToken = "test-token"
+
+        when: "calling getProductByCtoNr and API returns 503 with empty body"
+        def result = service.getProductByCtoNr(ctoNr, accessToken)
+
+        then: "WebClient is called and returns 503 with empty body"
+        1 * webClient.get() >> requestHeadersUriSpec
+        1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.SERVICE_UNAVAILABLE
+            clientResponse.bodyToMono(String.class) >> Mono.empty()
+            function.apply(clientResponse)
+        }
+
+        and: "RuntimeException is thrown"
+        StepVerifier.create(result)
+                .expectErrorMatches { it instanceof RuntimeException &&
+                        it.message.contains("server error") &&
+                        it.message.contains("503")
+                }
+                .verify()
+    }
+
+    def "should handle unexpected status code 302"() {
+        given: "a CTO number and access token"
+        def ctoNr = "REDIRECT-302"
+        def accessToken = "test-token"
+
+        when: "calling getProductByCtoNr and API returns unexpected 302"
+        def result = service.getProductByCtoNr(ctoNr, accessToken)
+
+        then: "WebClient is called and returns 302"
+        1 * webClient.get() >> requestHeadersUriSpec
+        1 * requestHeadersUriSpec.uri(_ as String) >> requestHeadersSpec
+        1 * requestHeadersSpec.exchangeToMono(_) >> { args ->
+            def function = args[0]
+            clientResponse.statusCode() >> HttpStatus.FOUND
+            function.apply(clientResponse)
+        }
+
+        and: "RuntimeException is thrown"
+        StepVerifier.create(result)
+                .expectErrorMatches { it instanceof RuntimeException &&
+                        it.message.contains("Unexpected HTTP status") &&
+                        it.message.contains("302")
+                }
+                .verify()
     }
 }

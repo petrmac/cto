@@ -35,29 +35,34 @@ public class AttributeParser {
     );
 
     // Categorization patterns with their corresponding builder setters
+    // Note: Using character classes [^\s#]{0,n} instead of .* to prevent catastrophic backtracking (ReDoS)
+    // Max length limit of 200 chars per attribute to prevent ReDoS attacks
+    private static final int MAX_ATTRIBUTE_LENGTH = 200;
+
     private static final List<CategoryRule> CATEGORY_RULES = List.of(
             new CategoryRule(
-                    Pattern.compile(".*(M\\d+\\s*(Pro|Max|Ultra)?\\s*Chip|Core\\s*(i\\d+|Ultra)|CPU|Processor|Ryzen|Threadripper).*", Pattern.CASE_INSENSITIVE),
+                    // Matches processor specs - use Pattern.DOTALL with non-greedy quantifiers
+                    Pattern.compile(".{0,200}?(M\\d+\\s*(Pro|Max|Ultra)?\\s*Chip|Core\\s*(i\\d+|Ultra)|CPU|Processor|Ryzen|Threadripper).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
                     ProductAttributes.Builder::processor
             ),
             new CategoryRule(
-                    Pattern.compile(".*(\\d+\\s*GB.*(?:Arbeitsspeicher|RAM|Memory|gemeinsam)).*", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile(".{0,200}?(\\d+\\s*GB.{0,50}?(Arbeitsspeicher|RAM|Memory|gemeinsam)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
                     ProductAttributes.Builder::memory
             ),
             new CategoryRule(
-                    Pattern.compile(".*(\\d+\\s*(?:TB|GB)\\s*(?:SSD|NVMe|Speicher|Storage)).*", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile(".{0,200}?(\\d+\\s*(TB|GB)\\s*(SSD|NVMe|Speicher|Storage)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
                     ProductAttributes.Builder::storage
             ),
             new CategoryRule(
-                    Pattern.compile(".*(\\d+W.*(?:Power Adapter|Netzteil|USB-C|Ladegerät)).*", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile(".{0,200}?(\\d+W.{0,50}?(Power Adapter|Netzteil|USB-C|Ladegerät)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
                     ProductAttributes.Builder::powerAdapter
             ),
             new CategoryRule(
-                    Pattern.compile(".*(Keyboard|Tastatur|Magic Keyboard).*", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile(".{0,200}?(Keyboard|Tastatur|Magic Keyboard).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
                     ProductAttributes.Builder::keyboard
             ),
             new CategoryRule(
-                    Pattern.compile(".*(Display|Bildschirm|Retina|Glass|Glas|Monitor|Screen).*", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile(".{0,200}?(Display|Bildschirm|Retina|Glass|Glas|Monitor|Screen).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL),
                     ProductAttributes.Builder::display
             )
     );
@@ -145,13 +150,19 @@ public class AttributeParser {
 
     /**
      * Categorizes an attribute by matching against patterns
+     * Truncates long attributes to prevent ReDoS attacks
      */
     private static void categorizeAttribute(ProductAttributes.Builder builder,
                                            List<String> otherItems,
                                            String attribute) {
+        // Truncate long attributes to prevent ReDoS
+        String safeAttribute = attribute.length() > MAX_ATTRIBUTE_LENGTH
+            ? attribute.substring(0, MAX_ATTRIBUTE_LENGTH)
+            : attribute;
+
         for (CategoryRule rule : CATEGORY_RULES) {
-            if (rule.pattern().matcher(attribute).matches()) {
-                rule.setter().accept(builder, attribute);
+            if (rule.pattern().matcher(safeAttribute).matches()) {
+                rule.setter().accept(builder, attribute); // Use original attribute, not truncated
                 return;
             }
         }

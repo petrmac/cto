@@ -92,6 +92,13 @@
             <artifactId>swagger-parser</artifactId>
         </dependency>
 
+        <!-- Logstash JSON encoder for structured logging in GCP -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Spring Boot Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -259,6 +266,34 @@
                 </configuration>
             </plugin>
 
+            <!-- Maven Dependency Plugin to download OpenTelemetry agent -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-otel-agent</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>io.opentelemetry.javaagent</groupId>
+                                    <artifactId>opentelemetry-javaagent</artifactId>
+                                    <version>2.10.0</version>
+                                    <type>jar</type>
+                                    <overWrite>false</overWrite>
+                                    <outputDirectory>${project.build.directory}/agents</outputDirectory>
+                                    <destFileName>opentelemetry-javaagent.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Jib Plugin for Docker image building -->
             <plugin>
                 <groupId>com.google.cloud.tools</groupId>
@@ -274,6 +309,14 @@
                             <tag>latest</tag>
                         </tags>
                     </to>
+                    <extraDirectories>
+                        <paths>
+                            <path>
+                                <from>target/agents</from>
+                                <into>/app/libs</into>
+                            </path>
+                        </paths>
+                    </extraDirectories>
                     <container>
                         <jvmFlags>
                             <jvmFlag>-Xms256m</jvmFlag>
@@ -281,6 +324,12 @@
                             <jvmFlag>-XX:+UseG1GC</jvmFlag>
                             <jvmFlag>-XX:MaxGCPauseMillis=100</jvmFlag>
                             <jvmFlag>-Djava.security.egd=file:/dev/./urandom</jvmFlag>
+                            <!-- OpenTelemetry Java Agent for automatic instrumentation -->
+                            <jvmFlag>-javaagent:/app/libs/opentelemetry-javaagent.jar</jvmFlag>
+                            <jvmFlag>-Dotel.service.name=comline-edge</jvmFlag>
+                            <jvmFlag>-Dotel.traces.exporter=otlp</jvmFlag>
+                            <jvmFlag>-Dotel.metrics.exporter=none</jvmFlag>
+                            <jvmFlag>-Dotel.logs.exporter=none</jvmFlag>
                         </jvmFlags>
                         <ports>
                             <port>8080</port>
