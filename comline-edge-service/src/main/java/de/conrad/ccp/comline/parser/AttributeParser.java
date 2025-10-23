@@ -43,28 +43,28 @@ public class AttributeParser {
 
     private static final List<CategoryRule> CATEGORY_RULES = List.of(
             new CategoryRule(
-                    // Matches processor specs - using non-capturing groups to prevent backtracking
-                    Pattern.compile(".{0,200}?(?:M\\d+(?:\\s+(?:Pro|Max|Ultra))?\\s+Chip|Core\\s+(?:i\\d+|Ultra)|CPU|Processor|Ryzen|Threadripper).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
+                    // Matches processor specs - using possessive quantifiers to prevent backtracking
+                    Pattern.compile(".*+(?:M\\d+(?:\\s+(?:Pro|Max|Ultra))?\\s+Chip|Core\\s+(?:i\\d+|Ultra)|CPU|Processor|Ryzen|Threadripper).*+", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::processor
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(?:\\d+\\s*GB.{0,50}?(?:Arbeitsspeicher|RAM|Memory|gemeinsam)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
+                    Pattern.compile(".*+\\d+\\s*GB.{0,50}+(?:Arbeitsspeicher|RAM|Memory|gemeinsam).*+", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::memory
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(?:\\d+\\s*(?:TB|GB)\\s*(?:SSD|NVMe|Speicher|Storage)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
+                    Pattern.compile(".*+\\d+\\s*(?:TB|GB)\\s*(?:SSD|NVMe|Speicher|Storage).*+", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::storage
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(?:\\d+W.{0,50}?(?:Power Adapter|Netzteil|USB-C|Ladegerät)).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
+                    Pattern.compile(".*+\\d+W.{0,50}+(?:Power Adapter|Netzteil|USB-C|Ladegerät).*+", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::powerAdapter
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(?:Keyboard|Tastatur|Magic Keyboard).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
+                    Pattern.compile(".*+(?:Keyboard|Tastatur|Magic Keyboard).*+", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::keyboard
             ),
             new CategoryRule(
-                    Pattern.compile(".{0,200}?(?:Display|Bildschirm|Retina|Glass|Glas|Monitor|Screen).{0,200}?", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
+                    Pattern.compile(".*+(?:Display|Bildschirm|Retina|Glass|Glas|Monitor|Screen).*+", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.CANON_EQ | Pattern.DOTALL),
                     ProductAttributes.Builder::display
             )
     );
